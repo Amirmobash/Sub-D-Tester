@@ -1,7 +1,7 @@
 # Sub-D-Tester
 
 Ein sauber aufgebautes Arduino- und Python-Projekt zum Prüfen von D-Sub-25 Kabeln, Leitungen und selbstgebauten Kabelbäumen. Die Software prüft bis zu 25 Adern auf Durchgang, Unterbrechung, Vertauschung und Kurzschluss. Dazu gehören eine moderne Desktop-Oberfläche in Python und ein Arduino-Sketch für den eigentlichen Leitungstest.
-
+Amir Mobasher
 Das Projekt ist bewusst praktisch gehalten: Es soll im Labor, in der Werkstatt oder im Studium schnell verständlich sein, ohne dass man sich erst durch unnötig komplizierte Strukturen kämpfen muss.
 
 ## Kurzüberblick
