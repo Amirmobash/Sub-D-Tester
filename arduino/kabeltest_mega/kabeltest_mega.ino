@@ -112,8 +112,7 @@ void testeAder(byte aderIndex) {
 
   vorbereiten();
 }
-
-void sendeErgebnis(byte pin, const char* status, byte ziel, byte treffer[], byte anzahl, const char* meldung) {
+yte treffer[], byte anzahl, const char* meldung) {
   Serial.print("{\"typ\":\"pin\",\"pin\":");
   Serial.print(pin);
   Serial.print(",\"status\":\"");
