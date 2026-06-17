@@ -277,8 +277,43 @@ void sendeErgebnis(Ergebnis ergebnis) {
     Serial.print(ergebnis.status);
     Serial.print(", ZIEL ");
     Serial.print(ergebnis.ziel);
+    Serial.print(", TREFFER [");
+
+    for (byte i = 0; i < ergebnis.anzahl; i++) {
+      if (i > 0) {
+        Serial.print(",");
+      }
+      Serial.print(ergebnis.treffer[i]);
+    }
+
+    Serial.print("], ");
+    Serial.println(ergebnis.meldung);
+  }
+}
+
+void sendeStatus() {
+  if (jsonFormat) {
     Serial.print("{\"typ\":\"status\",\"bereit\":true,\"adern\":");
     Serial.print(ADER_ANZAHL);
+    Serial.print(",\"format\":\"");
+    Serial.print(jsonFormat ? "json" : "text");
+    Serial.println("\"}");
+  } else {
+    Serial.print("STATUS: bereit, ");
+    Serial.print(ADER_ANZAHL);
+    Serial.print(" Adern, Format ");
+    Serial.println(jsonFormat ? "json" : "text");
+  }
+}
+
+void sendeFormat(const char* wert) {
+  if (jsonFormat) {
+    Serial.print("{\"typ\":\"format\",\"wert\":\"");
+    Serial.print(wert);
+    Serial.println("\"}");
+  } else {
+    Serial.print("FORMAT: ");
+    Serial.println(wert);
   }
 }
 
@@ -286,3 +321,28 @@ void sendeInfo(const char* meldung) {
   if (jsonFormat) {
     Serial.print("{\"typ\":\"info\",\"meldung\":\"");
     Serial.print(meldung);
+    Serial.println("\"}");
+  } else {
+    Serial.print("INFO: ");
+    Serial.println(meldung);
+  }
+}
+
+void sendeFehler(const char* meldung) {
+  if (jsonFormat) {
+    Serial.print("{\"typ\":\"fehler\",\"meldung\":\"");
+    Serial.print(meldung);
+    Serial.println("\"}");
+  } else {
+    Serial.print("FEHLER: ");
+    Serial.println(meldung);
+  }
+}
+
+void hilfe() {
+  if (jsonFormat) {
+    Serial.println("{\"typ\":\"hilfe\",\"befehle\":[\"TEST\",\"PIN 1..25\",\"STATUS\",\"FORMAT JSON\",\"FORMAT TEXT\",\"RESET\",\"HILFE\"]}");
+  } else {
+    Serial.println("Befehle: TEST, PIN 1..25, STATUS, FORMAT JSON, FORMAT TEXT, RESET, HILFE");
+  }
+}
