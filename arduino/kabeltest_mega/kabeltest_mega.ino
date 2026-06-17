@@ -1,4 +1,7 @@
 const byte ADER_ANZAHL = 25;
+const unsigned long BAUDRATE = 9600;
+const unsigned int SCHALTZEIT_MS = 12;
+const unsigned int PAUSE_MS = 25;
 
 const byte ausgangspins[ADER_ANZAHL] = {
   22, 23, 24, 25, 26,
@@ -18,10 +21,20 @@ const byte eingangspins[ADER_ANZAHL] = {
 
 bool jsonFormat = true;
 
+struct Ergebnis {
+  byte pin;
+  byte ziel;
+  byte treffer[ADER_ANZAHL];
+  byte anzahl;
+  String status;
+  String meldung;
+};
+
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(BAUDRATE);
+  Serial.setTimeout(100);
   vorbereiten();
-  Serial.println("{\"typ\":\"bereit\",\"adern\":25}");
+  sendeBereit();
 }
 
 void loop() {
@@ -33,104 +46,243 @@ void loop() {
   befehl.trim();
   befehl.toUpperCase();
 
+  if (befehl.length() == 0) {
+    sendeFehler("Leerer Befehl");
+    return;
+  }
+
   if (befehl == "TEST") {
     gesamttest();
     return;
   }
 
   if (befehl.startsWith("PIN ")) {
-    int nummer = befehl.substring(4).toInt();
-    if (nummer >= 1 && nummer <= ADER_ANZAHL) {
-      testeAder(nummer - 1);
-    } else {
-      Serial.println("{\"typ\":\"fehler\",\"meldung\":\"Ungueltige Adernummer\"}");
-    }
+    verarbeitePinBefehl(befehl);
     return;
   }
 
   if (befehl == "STATUS") {
-    Serial.println("{\"typ\":\"status\",\"bereit\":true,\"adern\":25}");
+    sendeStatus();
     return;
   }
 
   if (befehl == "FORMAT JSON") {
     jsonFormat = true;
-    Serial.println("{\"typ\":\"format\",\"wert\":\"json\"}");
+    sendeFormat("json");
     return;
   }
 
-  if (befehl == "HILFE") {
+  if (befehl == "FORMAT TEXT") {
+    jsonFormat = false;
+    sendeFormat("text");
+    return;
+  }
+
+  if (befehl == "RESET") {
+    vorbereiten();
+    sendeInfo("Pins wurden zurueckgesetzt");
+    return;
+  }
+
+  if (befehl == "HILFE" || befehl == "HELP") {
     hilfe();
     return;
   }
 
-  Serial.println("{\"typ\":\"fehler\",\"meldung\":\"Unbekannter Befehl\"}");
+  sendeFehler("Unbekannter Befehl");
+}
+
+void verarbeitePinBefehl(String befehl) {
+  String wert = befehl.substring(4);
+  wert.trim();
+
+  if (!istZahl(wert)) {
+    sendeFehler("Adernummer ist keine Zahl");
+    return;
+  }
+
+  int nummer = wert.toInt();
+
+  if (nummer < 1 || nummer > ADER_ANZAHL) {
+    sendeFehler("Ungueltige Adernummer");
+    return;
+  }
+
+  Ergebnis ergebnis = testeAder(nummer - 1);
+  sendeErgebnis(ergebnis);
+}
+
+bool istZahl(String text) {
+  if (text.length() == 0) {
+    return false;
+  }
+
+  for (unsigned int i = 0; i < text.length(); i++) {
+    if (!isDigit(text.charAt(i))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 void vorbereiten() {
   for (byte i = 0; i < ADER_ANZAHL; i++) {
     pinMode(ausgangspins[i], INPUT);
+    digitalWrite(ausgangspins[i], LOW);
     pinMode(eingangspins[i], INPUT_PULLUP);
   }
 }
 
 void gesamttest() {
-  Serial.println("{\"typ\":\"start\",\"adern\":25}");
+  byte ok = 0;
+  byte vertauscht = 0;
+  byte kurzschluss = 0;
+  byte unterbrochen = 0;
+
+  sendeStart();
+
   for (byte i = 0; i < ADER_ANZAHL; i++) {
-    testeAder(i);
-    delay(25);
+    Ergebnis ergebnis = testeAder(i);
+    sendeErgebnis(ergebnis);
+
+    if (ergebnis.status == "ok") {
+      ok++;
+    } else if (ergebnis.status == "vertauscht") {
+      vertauscht++;
+    } else if (ergebnis.status == "kurzschluss") {
+      kurzschluss++;
+    } else if (ergebnis.status == "unterbrochen") {
+      unterbrochen++;
+    }
+
+    delay(PAUSE_MS);
   }
+
   vorbereiten();
-  Serial.println("{\"typ\":\"ende\"}");
+  sendeEnde(ok, vertauscht, kurzschluss, unterbrochen);
 }
 
-void testeAder(byte aderIndex) {
-  byte treffer[ADER_ANZAHL];
-  byte anzahl = 0;
+Ergebnis testeAder(byte aderIndex) {
+  Ergebnis ergebnis;
+  ergebnis.pin = aderIndex + 1;
+  ergebnis.ziel = 0;
+  ergebnis.anzahl = 0;
 
   vorbereiten();
+
   pinMode(ausgangspins[aderIndex], OUTPUT);
   digitalWrite(ausgangspins[aderIndex], LOW);
-  delay(12);
+
+  delay(SCHALTZEIT_MS);
 
   for (byte i = 0; i < ADER_ANZAHL; i++) {
     if (digitalRead(eingangspins[i]) == LOW) {
-      treffer[anzahl] = i + 1;
-      anzahl++;
+      ergebnis.treffer[ergebnis.anzahl] = i + 1;
+      ergebnis.anzahl++;
     }
   }
 
-  if (anzahl == 0) {
-    sendeErgebnis(aderIndex + 1, "unterbrochen", 0, treffer, anzahl, "Keine Verbindung erkannt");
-  } else if (anzahl == 1 && treffer[0] == aderIndex + 1) {
-    sendeErgebnis(aderIndex + 1, "ok", treffer[0], treffer, anzahl, "Ader ist korrekt verbunden");
-  } else if (anzahl == 1) {
-    sendeErgebnis(aderIndex + 1, "vertauscht", treffer[0], treffer, anzahl, "Ader liegt auf einem anderen Kontakt");
+  if (ergebnis.anzahl == 0) {
+    ergebnis.status = "unterbrochen";
+    ergebnis.meldung = "Keine Verbindung erkannt";
+  } else if (ergebnis.anzahl == 1 && ergebnis.treffer[0] == aderIndex + 1) {
+    ergebnis.status = "ok";
+    ergebnis.ziel = ergebnis.treffer[0];
+    ergebnis.meldung = "Ader ist korrekt verbunden";
+  } else if (ergebnis.anzahl == 1) {
+    ergebnis.status = "vertauscht";
+    ergebnis.ziel = ergebnis.treffer[0];
+    ergebnis.meldung = "Ader liegt auf einem anderen Kontakt";
   } else {
-    sendeErgebnis(aderIndex + 1, "kurzschluss", 0, treffer, anzahl, "Mehrere Kontakte reagieren gleichzeitig");
+    ergebnis.status = "kurzschluss";
+    ergebnis.meldung = "Mehrere Kontakte reagieren gleichzeitig";
   }
 
   vorbereiten();
-}
-yte treffer[], byte anzahl, const char* meldung) {
-  Serial.print("{\"typ\":\"pin\",\"pin\":");
-  Serial.print(pin);
-  Serial.print(",\"status\":\"");
-  Serial.print(status);
-  Serial.print("\",\"ziel\":");
-  Serial.print(ziel);
-  Serial.print(",\"treffer\":[");
-  for (byte i = 0; i < anzahl; i++) {
-    if (i > 0) {
-      Serial.print(",");
-    }
-    Serial.print(treffer[i]);
-  }
-  Serial.print("],\"meldung\":\"");
-  Serial.print(meldung);
-  Serial.println("\"}");
+  return ergebnis;
 }
 
-void hilfe() {
-  Serial.println("Befehle: TEST, PIN 1..25, STATUS, FORMAT JSON, HILFE");
+void sendeBereit() {
+  if (jsonFormat) {
+    Serial.print("{\"typ\":\"bereit\",\"adern\":");
+    Serial.print(ADER_ANZAHL);
+    Serial.println("}");
+  } else {
+    Serial.print("BEREIT: ");
+    Serial.print(ADER_ANZAHL);
+    Serial.println(" Adern");
+  }
 }
+
+void sendeStart() {
+  if (jsonFormat) {
+    Serial.print("{\"typ\":\"start\",\"adern\":");
+    Serial.print(ADER_ANZAHL);
+    Serial.println("}");
+  } else {
+    Serial.print("TEST START: ");
+    Serial.print(ADER_ANZAHL);
+    Serial.println(" Adern");
+  }
+}
+
+void sendeEnde(byte ok, byte vertauscht, byte kurzschluss, byte unterbrochen) {
+  if (jsonFormat) {
+    Serial.print("{\"typ\":\"ende\",\"ok\":");
+    Serial.print(ok);
+    Serial.print(",\"vertauscht\":");
+    Serial.print(vertauscht);
+    Serial.print(",\"kurzschluss\":");
+    Serial.print(kurzschluss);
+    Serial.print(",\"unterbrochen\":");
+    Serial.print(unterbrochen);
+    Serial.println("}");
+  } else {
+    Serial.print("TEST ENDE: OK=");
+    Serial.print(ok);
+    Serial.print(", VERTAUSCHT=");
+    Serial.print(vertauscht);
+    Serial.print(", KURZSCHLUSS=");
+    Serial.print(kurzschluss);
+    Serial.print(", UNTERBROCHEN=");
+    Serial.println(unterbrochen);
+  }
+}
+
+void sendeErgebnis(Ergebnis ergebnis) {
+  if (jsonFormat) {
+    Serial.print("{\"typ\":\"pin\",\"pin\":");
+    Serial.print(ergebnis.pin);
+    Serial.print(",\"status\":\"");
+    Serial.print(ergebnis.status);
+    Serial.print("\",\"ziel\":");
+    Serial.print(ergebnis.ziel);
+    Serial.print(",\"treffer\":[");
+
+    for (byte i = 0; i < ergebnis.anzahl; i++) {
+      if (i > 0) {
+        Serial.print(",");
+      }
+      Serial.print(ergebnis.treffer[i]);
+    }
+
+    Serial.print("],\"meldung\":\"");
+    Serial.print(ergebnis.meldung);
+    Serial.println("\"}");
+  } else {
+    Serial.print("PIN ");
+    Serial.print(ergebnis.pin);
+    Serial.print(": ");
+    Serial.print(ergebnis.status);
+    Serial.print(", ZIEL ");
+    Serial.print(ergebnis.ziel);
+    Serial.print("{\"typ\":\"status\",\"bereit\":true,\"adern\":");
+    Serial.print(ADER_ANZAHL);
+  }
+}
+
+void sendeInfo(const char* meldung) {
+  if (jsonFormat) {
+    Serial.print("{\"typ\":\"info\",\"meldung\":\"");
+    Serial.print(meldung);
