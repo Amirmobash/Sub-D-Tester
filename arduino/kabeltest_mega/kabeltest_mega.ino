@@ -6,10 +6,18 @@ const unsigned int PAUSE_MS = 25;
 const byte ausgangspins[ADER_ANZAHL] = {
   22, 23, 24, 25, 26,
   27, 28, 29, 30, 31,
+  32, 33, 34, 35, 36,
   37, 38, 39, 40, 41,
   42, 43, 44, 45, 46
 };
 
+const byte eingangspins[ADER_ANZAHL] = {
+  A0, A1, A2, A3, A4,
+  A5, A6, A7, A8, A9,
+  A10, A11, A12, A13, A14,
+  A15, 2, 3, 4, 5,
+  6, 7, 8, 9, 10
+};
 
 bool jsonFormat = true;
 
@@ -18,13 +26,13 @@ struct Ergebnis {
   byte ziel;
   byte treffer[ADER_ANZAHL];
   byte anzahl;
-  String status;
-  String meldung;
+  const char* status;
+  const char* meldung;
 };
 
 void setup() {
   Serial.begin(BAUDRATE);
-  Serial.setTimeout(100);
+  Serial.setTimeout(150);
   vorbereiten();
   sendeBereit();
 }
@@ -65,8 +73,8 @@ void loop() {
   }
 
   if (befehl == "FORMAT TEXT") {
-    jsonFormat = false;
     sendeFormat("text");
+    jsonFormat = false;
     return;
   }
 
@@ -138,13 +146,13 @@ void gesamttest() {
     Ergebnis ergebnis = testeAder(i);
     sendeErgebnis(ergebnis);
 
-    if (ergebnis.status == "ok") {
+    if (strcmp(ergebnis.status, "ok") == 0) {
       ok++;
-    } else if (ergebnis.status == "vertauscht") {
+    } else if (strcmp(ergebnis.status, "vertauscht") == 0) {
       vertauscht++;
-    } else if (ergebnis.status == "kurzschluss") {
+    } else if (strcmp(ergebnis.status, "kurzschluss") == 0) {
       kurzschluss++;
-    } else if (ergebnis.status == "unterbrochen") {
+    } else if (strcmp(ergebnis.status, "unterbrochen") == 0) {
       unterbrochen++;
     }
 
@@ -160,6 +168,8 @@ Ergebnis testeAder(byte aderIndex) {
   ergebnis.pin = aderIndex + 1;
   ergebnis.ziel = 0;
   ergebnis.anzahl = 0;
+  ergebnis.status = "unbekannt";
+  ergebnis.meldung = "Kein Ergebnis";
 
   vorbereiten();
 
@@ -170,8 +180,10 @@ Ergebnis testeAder(byte aderIndex) {
 
   for (byte i = 0; i < ADER_ANZAHL; i++) {
     if (digitalRead(eingangspins[i]) == LOW) {
-      ergebnis.treffer[ergebnis.anzahl] = i + 1;
-      ergebnis.anzahl++;
+      if (ergebnis.anzahl < ADER_ANZAHL) {
+        ergebnis.treffer[ergebnis.anzahl] = i + 1;
+        ergebnis.anzahl++;
+      }
     }
   }
 
@@ -188,6 +200,7 @@ Ergebnis testeAder(byte aderIndex) {
     ergebnis.meldung = "Ader liegt auf einem anderen Kontakt";
   } else {
     ergebnis.status = "kurzschluss";
+    ergebnis.ziel = 0;
     ergebnis.meldung = "Mehrere Kontakte reagieren gleichzeitig";
   }
 
@@ -196,7 +209,8 @@ Ergebnis testeAder(byte aderIndex) {
 }
 
 void sendeBereit() {
-  if (jsonFormat) 
+  if (jsonFormat) {
+    Serial.print("{\"typ\":\"bereit\",\"adern\":");
     Serial.print(ADER_ANZAHL);
     Serial.println("}");
   } else {
