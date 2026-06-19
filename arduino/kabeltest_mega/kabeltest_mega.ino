@@ -203,8 +203,7 @@ Ergebnis testeAder(byte aderIndex) {
 }
 
 void sendeBereit() {
-  if (jsonFormat) {
-    Serial.print("{\"typ\":\"bereit\",\"adern\":");
+  if (jsonFormat) 
     Serial.print(ADER_ANZAHL);
     Serial.println("}");
   } else {
