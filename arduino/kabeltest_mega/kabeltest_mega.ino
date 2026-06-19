@@ -1,4 +1,8 @@
+#include <string.h>
+#include <stdlib.h>
+
 const byte ADER_ANZAHL = 25;
+const byte BEFEHL_LAENGE = 50;
 const unsigned long BAUDRATE = 9600;
 const unsigned int SCHALTZEIT_MS = 12;
 const unsigned int PAUSE_MS = 25;
@@ -20,6 +24,7 @@ const byte eingangspins[ADER_ANZAHL] = {
 };
 
 bool jsonFormat = true;
+char befehl[BEFEHL_LAENGE];
 
 struct Ergebnis {
   byte pin;
@@ -29,6 +34,26 @@ struct Ergebnis {
   const char* status;
   const char* meldung;
 };
+
+bool leseBefehl(char* ziel, size_t groesse);
+void trimmen(char* text);
+void grossMachen(char* text);
+bool beginntMit(const char* text, const char* start);
+bool istZahl(const char* text);
+void verarbeiteBefehl(char* text);
+void verarbeitePinBefehl(const char* text);
+void vorbereiten();
+void gesamttest();
+Ergebnis testeAder(byte aderIndex);
+void sendeBereit();
+void sendeStart();
+void sendeEnde(byte ok, byte vertauscht, byte kurzschluss, byte unterbrochen);
+void sendeErgebnis(Ergebnis ergebnis);
+void sendeStatus();
+void sendeFormat(const char* wert);
+void sendeInfo(const char* meldung);
+void sendeFehler(const char* meldung);
+void hilfe();
 
 void setup() {
   Serial.begin(BAUDRATE);
@@ -42,49 +67,112 @@ void loop() {
     return;
   }
 
-  String befehl = Serial.readStringUntil('\n');
-  befehl.trim();
-  befehl.toUpperCase();
-
-  if (befehl.length() == 0) {
+  if (!leseBefehl(befehl, sizeof(befehl))) {
     sendeFehler("Leerer Befehl");
     return;
   }
 
-  if (befehl == "TEST") {
+  verarbeiteBefehl(befehl);
+}
+
+bool leseBefehl(char* ziel, size_t groesse) {
+  size_t laenge = Serial.readBytesUntil('\n', ziel, groesse - 1);
+  ziel[laenge] = '\0';
+
+  trimmen(ziel);
+  grossMachen(ziel);
+
+  return strlen(ziel) > 0;
+}
+
+void trimmen(char* text) {
+  char* start = text;
+
+  while (*start == ' ' || *start == '\t' || *start == '\r' || *start == '\n') {
+    start++;
+  }
+
+  char* ende = start + strlen(start);
+
+  while (ende > start && (*(ende - 1) == ' ' || *(ende - 1) == '\t' || *(ende - 1) == '\r' || *(ende - 1) == '\n')) {
+    ende--;
+  }
+
+  size_t neueLaenge = ende - start;
+
+  if (start != text) {
+    memmove(text, start, neueLaenge);
+  }
+
+  text[neueLaenge] = '\0';
+}
+
+void grossMachen(char* text) {
+  for (byte i = 0; text[i] != '\0'; i++) {
+    if (text[i] >= 'a' && text[i] <= 'z') {
+      text[i] = text[i] - 32;
+    }
+  }
+}
+
+bool beginntMit(const char* text, const char* start) {
+  return strncmp(text, start, strlen(start)) == 0;
+}
+
+bool istZahl(const char* text) {
+  if (text == NULL || *text == '\0') {
+    return false;
+  }
+
+  for (byte i = 0; text[i] != '\0'; i++) {
+    if (text[i] < '0' || text[i] > '9') {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+void verarbeiteBefehl(char* text) {
+  if (strcmp(text, "TEST") == 0) {
     gesamttest();
     return;
   }
 
-  if (befehl.startsWith("PIN ")) {
-    verarbeitePinBefehl(befehl);
+  if (beginntMit(text, "PIN ")) {
+    verarbeitePinBefehl(text);
     return;
   }
 
-  if (befehl == "STATUS") {
+  if (strcmp(text, "PIN") == 0) {
+    sendeFehler("Adernummer fehlt");
+    return;
+  }
+
+  if (strcmp(text, "STATUS") == 0) {
     sendeStatus();
     return;
   }
 
-  if (befehl == "FORMAT JSON") {
+  if (strcmp(text, "FORMAT JSON") == 0) {
     jsonFormat = true;
     sendeFormat("json");
     return;
   }
 
-  if (befehl == "FORMAT TEXT") {
-    sendeFormat("text");
+  if (strcmp(text, "FORMAT TEXT") == 0) {
     jsonFormat = false;
+    sendeFormat("text");
     return;
   }
 
-  if (befehl == "RESET") {
+  if (strcmp(text, "RESET") == 0) {
     vorbereiten();
     sendeInfo("Pins wurden zurueckgesetzt");
     return;
   }
 
-  if (befehl == "HILFE" || befehl == "HELP") {
+  if (strcmp(text, "HILFE") == 0 || strcmp(text, "HELP") == 0) {
     hilfe();
     return;
   }
@@ -92,16 +180,19 @@ void loop() {
   sendeFehler("Unbekannter Befehl");
 }
 
-void verarbeitePinBefehl(String befehl) {
-  String wert = befehl.substring(4);
-  wert.trim();
+void verarbeitePinBefehl(const char* text) {
+  const char* wert = text + 3;
+
+  while (*wert == ' ') {
+    wert++;
+  }
 
   if (!istZahl(wert)) {
     sendeFehler("Adernummer ist keine Zahl");
     return;
   }
 
-  int nummer = wert.toInt();
+  int nummer = atoi(wert);
 
   if (nummer < 1 || nummer > ADER_ANZAHL) {
     sendeFehler("Ungueltige Adernummer");
@@ -110,20 +201,6 @@ void verarbeitePinBefehl(String befehl) {
 
   Ergebnis ergebnis = testeAder(nummer - 1);
   sendeErgebnis(ergebnis);
-}
-
-bool istZahl(String text) {
-  if (text.length() == 0) {
-    return false;
-  }
-
-  for (unsigned int i = 0; i < text.length(); i++) {
-    if (!isDigit(text.charAt(i))) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 void vorbereiten() {
@@ -165,11 +242,16 @@ void gesamttest() {
 
 Ergebnis testeAder(byte aderIndex) {
   Ergebnis ergebnis;
+
   ergebnis.pin = aderIndex + 1;
   ergebnis.ziel = 0;
   ergebnis.anzahl = 0;
   ergebnis.status = "unbekannt";
   ergebnis.meldung = "Kein Ergebnis";
+
+  for (byte i = 0; i < ADER_ANZAHL; i++) {
+    ergebnis.treffer[i] = 0;
+  }
 
   vorbereiten();
 
@@ -189,6 +271,7 @@ Ergebnis testeAder(byte aderIndex) {
 
   if (ergebnis.anzahl == 0) {
     ergebnis.status = "unterbrochen";
+    ergebnis.ziel = 0;
     ergebnis.meldung = "Keine Verbindung erkannt";
   } else if (ergebnis.anzahl == 1 && ergebnis.treffer[0] == aderIndex + 1) {
     ergebnis.status = "ok";
@@ -300,14 +383,14 @@ void sendeStatus() {
   if (jsonFormat) {
     Serial.print("{\"typ\":\"status\",\"bereit\":true,\"adern\":");
     Serial.print(ADER_ANZAHL);
-    Serial.print(",\"format\":\"");
-    Serial.print(jsonFormat ? "json" : "text");
-    Serial.println("\"}");
+    Serial.print(",\"format\":\"json\",\"baudrate\":");
+    Serial.print(BAUDRATE);
+    Serial.println("}");
   } else {
     Serial.print("STATUS: bereit, ");
     Serial.print(ADER_ANZAHL);
-    Serial.print(" Adern, Format ");
-    Serial.println(jsonFormat ? "json" : "text");
+    Serial.print(" Adern, Format text, Baudrate ");
+    Serial.println(BAUDRATE);
   }
 }
 
