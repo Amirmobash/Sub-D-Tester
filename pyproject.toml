@@ -1,0 +1,12 @@
+[project]
+name = "sub-d-tester"
+version = "2.0.0"
+description = "Werkstattfreundlicher D-Sub-25 Kabeltester mit Arduino Mega und Python-Oberfläche."
+authors = [{ name = "Amir Mobahseraghdam" }]
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["arduino", "d-sub", "kabeltester", "customtkinter", "serial"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

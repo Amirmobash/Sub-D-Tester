@@ -1,56 +1,41 @@
 # Sub-D-Tester
 
-Ein sauber aufgebautes Arduino- und Python-Projekt zum Prüfen von D-Sub-25 Kabeln, Leitungen und selbstgebauten Kabelbäumen. Die Software prüft bis zu 25 Adern auf Durchgang, Unterbrechung, Vertauschung und Kurzschluss. Dazu gehören eine moderne Desktop-Oberfläche in Python und ein Arduino-Sketch für den eigentlichen Leitungstest.
-Amir Mobasher
-Das Projekt ist bewusst praktisch gehalten: Es soll im Labor, in der Werkstatt oder im Studium schnell verständlich sein, ohne dass man sich erst durch unnötig komplizierte Strukturen kämpfen muss.
+**Sub-D-Tester** ist ein sauber aufgebautes Werkstattprojekt zum Prüfen von D-Sub-25 Kabeln und kleinen Kabelbäumen. Die Anwendung kombiniert einen Arduino-Mega-Sketch mit einer übersichtlichen Python-Oberfläche. So lassen sich 25 Adern Schritt für Schritt auf Durchgang, Unterbrechung, Vertauschung und Kurzschluss prüfen.
 
-## Kurzüberblick
+Autor: **Amir Mobahseraghdam**
 
-- Prüfung von bis zu 25 Leitungen
-- Arduino Mega als Mess- und Steuereinheit
-- Python-Oberfläche mit CustomTkinter
-- Anzeige jeder einzelnen Ader als eigene Prüfkarte
-- Erkennung von korrekter Verbindung, Unterbrechung, Vertauschung und Kurzschluss
-- Serielles JSON-Protokoll zwischen Arduino und Python
-- Simulationsmodus ohne angeschlossene Hardware
-- Vollbildmodus für Touchscreen- oder Werkstattbetrieb
-- GitHub-fertige Projektstruktur
+Das Projekt ist bewusst praktisch gehalten. Es soll in der Werkstatt, im Labor, in der Ausbildung oder beim Aufbau eigener Testadapter schnell verständlich sein. Die Namen im Code sind sprechend gewählt, die Struktur ist klein genug zum Lernen und sauber genug zum Weiterbauen.
+
+## Was kann das Projekt?
+
+- D-Sub-25 Leitungen automatisch prüfen
+- Arduino Mega als Mess- und Steuereinheit verwenden
+- Python-Desktopoberfläche mit CustomTkinter starten
+- Einzelne Adern oder alle 25 Adern testen
+- Ergebnisse live als Karten anzeigen
+- Status `ok`, `unterbrochen`, `vertauscht`, `kurzschluss` und `fehler` auswerten
+- Serielles JSON-Protokoll zwischen Arduino und PC nutzen
+- Simulationsmodus ohne Hardware starten
+- Prüfergebnisse als CSV speichern
+- Vollbildmodus für Werkstatt- oder Touchscreenbetrieb verwenden
 
 ## Projektidee
 
-Viele Kabeltests werden noch mit Multimeter, Papierliste und viel Geduld durchgeführt. Bei wenigen Leitungen ist das machbar. Bei 25-poligen Steckverbindern wird es schnell unübersichtlich. Dieses Projekt automatisiert genau diesen Ablauf.
-
-Der Arduino legt nacheinander jede Ausgangsader auf LOW und liest auf der Gegenseite alle Eingänge aus. Dadurch erkennt das System, ob die erwartete Ader korrekt verbunden ist oder ob ein Fehler vorliegt. Die Python-Oberfläche zeigt das Ergebnis direkt sichtbar an.
-
-## Geeignete Anwendungen
-
-- D-Sub-25 Kabelprüfung
-- Prüfung von Kabelbäumen
-- Laboraufbau für Messtechnik
-- Werkstattprüfung vor Inbetriebnahme
-- Ausbildungsprojekt für Arduino und Python
-- Demonstrator für HMI, Automatisierung und serielle Kommunikation
+Bei einem 25-poligen Stecker wird ein manueller Kabeltest schnell unübersichtlich. Dieses Projekt nimmt dem Anwender die Wiederholung ab: Der Arduino legt nacheinander jede Ausgangsader auf LOW und liest auf der Gegenseite alle Eingänge. Die Python-Oberfläche zeigt sofort, welche Leitung stimmt und wo nachgearbeitet werden muss.
 
 ## Hardware
 
-### Empfohlene Bauteile
+Empfohlen wird ein Arduino Mega, weil genügend digitale und analoge Pins vorhanden sind.
 
 | Bauteil | Zweck |
 |---|---|
-| Arduino Mega | Genügend I/O-Pins für 25 Leitungen |
-| Zwei D-Sub-25 Buchsen | Kabelanschluss für Ein- und Ausgang |
-| Terminal Block Shield | Saubere Verdrahtung ohne lose Steckbrücken |
-| USB-Kabel | Verbindung zwischen PC und Arduino |
-| Optionales Gehäuse | Mechanischer Schutz und bessere Bedienung |
-| Optionales Touchdisplay | Lokaler Betrieb ohne PC möglich |
-
-### Warum Arduino Mega?
-
-Für 25 Leitungen werden viele Ein- und Ausgänge benötigt. Ein Arduino Uno reicht dafür nur mit zusätzlicher Hardware. Der Mega bietet genug Pins, ist gut verfügbar und bleibt für Lern- und Werkstattprojekte einfach verständlich.
+| Arduino Mega | Steuerung und Messung der 25 Leitungen |
+| 2 × D-Sub-25 Buchse oder Stecker | Anschluss für Prüfling und Gegenstück |
+| Klemmen, Adapterplatine oder Shield | Saubere Verdrahtung |
+| USB-Kabel | Verbindung zum PC |
+| Gehäuse, Frontplatte, Beschriftung | Optional für die Werkstatt |
 
 ## Pinbelegung
-
-Die Standardbelegung im Arduino-Sketch ist so gewählt, dass sie auf einem Arduino Mega gut funktioniert.
 
 | Ader | Ausgang | Eingang |
 |---:|---:|---:|
@@ -80,39 +65,90 @@ Die Standardbelegung im Arduino-Sketch ist so gewählt, dass sie auf einem Ardui
 | 24 | 45 | 9 |
 | 25 | 46 | 10 |
 
-Die Zuordnung kann im Sketch in den Arrays `ausgangspins` und `eingangspins` angepasst werden.
+Die Zuordnung steht im Arduino-Sketch in den Arrays `ausgangspins` und `eingangspins`.
 
-## Prüfprinzip
+## Installation
 
-Für jede Ader läuft derselbe Ablauf:
+### 1. Python-Umgebung vorbereiten
 
-1. Alle Ausgangspins werden hochohmig geschaltet.
-2. Alle Eingangspins werden mit internem Pull-up vorbereitet.
-3. Eine einzelne Ausgangsader wird auf LOW gesetzt.
-4. Der Arduino liest alle Eingänge aus.
-5. Aus den Treffern wird der Zustand berechnet.
+```bash
+python -m venv .venv
+```
 
-### Ergebnisarten
+Windows:
 
-| Status | Bedeutung |
-|---|---|
-| `ok` | Die Ader ist korrekt verbunden |
-| `unterbrochen` | Es wurde keine Verbindung gefunden |
-| `vertauscht` | Die Ader ist mit einem anderen Kontakt verbunden |
-| `kurzschluss` | Mehrere Kontakte reagieren gleichzeitig |
-| `fehler` | Die Antwort konnte nicht sauber verarbeitet werden |
+```bash
+.venv\Scripts\activate
+```
+
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Dann die Abhängigkeiten installieren:
+
+```bash
+pip install -r requirements.txt
+```
+
+### 2. Arduino-Sketch hochladen
+
+Datei öffnen:
+
+```text
+arduino/sub_d_tester_mega/sub_d_tester_mega.ino
+```
+
+In der Arduino IDE:
+
+1. Board: **Arduino Mega or Mega 2560** wählen
+2. Richtigen Port auswählen
+3. Sketch kompilieren und hochladen
+4. Serial Monitor schließen, bevor die Python-App verbindet
+
+### 3. Python-App starten
+
+Mit Hardware:
+
+```bash
+python main.py --port COM7 --fenster
+```
+
+Linux-Beispiel:
+
+```bash
+python main.py --port /dev/ttyACM0 --fenster
+```
+
+Ohne Hardware im Simulationsmodus:
+
+```bash
+python main.py --simulation --fenster
+```
+
+Vollbildmodus:
+
+```bash
+python main.py --simulation
+```
+
+`ESC` beendet den Vollbildmodus, `F11` schaltet ihn um.
 
 ## Serielle Befehle
 
-Die Kommunikation läuft über USB-Serial mit 9600 Baud.
+Die Kommunikation läuft mit **9600 Baud**. Die Python-App nutzt standardmäßig JSON.
 
 | Befehl | Wirkung |
 |---|---|
-| `TEST` | Startet den Gesamttest aller 25 Adern |
+| `TEST` | Prüft alle 25 Adern |
 | `PIN 7` | Prüft nur Ader 7 |
-| `STATUS` | Gibt den aktuellen Grundstatus zurück |
+| `STATUS` | Gibt den aktuellen Status zurück |
 | `FORMAT JSON` | Aktiviert JSON-Ausgabe |
-| `HILFE` | Gibt die verfügbaren Befehle aus |
+| `FORMAT TEXT` | Aktiviert Textausgabe für manuelle Tests |
+| `RESET` | Setzt alle Pins wieder in den sicheren Grundzustand |
+| `HILFE` | Gibt die Befehle aus |
 
 Beispielantwort:
 
@@ -120,189 +156,82 @@ Beispielantwort:
 {"typ":"pin","pin":5,"status":"ok","ziel":5,"treffer":[5],"meldung":"Ader ist korrekt verbunden"}
 ```
 
-## Software
-
-Die Desktop-Anwendung ist in Python geschrieben und verwendet CustomTkinter. Sie kann direkt mit dem Arduino arbeiten oder im Simulationsmodus ohne Hardware gestartet werden.
-
-### Funktionen der Oberfläche
-
-- Verbindung zu einem frei wählbaren COM-Port
-- Start eines Gesamttests
-- Einzeltest einer bestimmten Ader
-- Live-Anzeige pro Ader
-- Fortschrittsanzeige
-- Ergebnisstatistik
-- Prüfprotokoll mit Zeitstempel
-- Simulationsmodus für Vorführung und Entwicklung
-- Vollbildmodus für Touchscreen-Bedienung
-
-## Installation
-
-### 1. Repository klonen
-
-```bash
-git clone https://github.com/DEIN-BENUTZERNAME/Kabeltest.git
-cd Kabeltest
-```
-
-### 2. Python-Abhängigkeiten installieren
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Arduino-Sketch hochladen
-
-Die Datei befindet sich hier:
-
-```text
-arduino/kabeltest_mega/kabeltest_mega.ino
-```
-
-In der Arduino IDE:
-
-1. Board auf Arduino Mega stellen
-2. Richtigen Port auswählen
-3. Sketch öffnen
-4. Hochladen
-
-### 4. Python-Oberfläche starten
-
-```bash
-python main.py
-```
-
-Fenstermodus:
-
-```bash
-python main.py --fenster
-```
-
-Mit bestimmtem Port:
-
-```bash
-python main.py --port COM7
-```
-
-Mit Simulation:
-
-```bash
-python main.py --simulation --fenster
-```
-
-Unter Linux kann der Port zum Beispiel so aussehen:
-
-```bash
-python main.py --port /dev/ttyACM0 --fenster
-```
-
-Unter macOS zum Beispiel:
-
-```bash
-python main.py --port /dev/cu.usbmodem14101 --fenster
-```
-
-## requirements.txt
-
-```text
-customtkinter
-pyserial
-```
-
 ## Projektstruktur
 
 ```text
-Kabeltest/
+Sub-D-Tester/
 ├── main.py
 ├── requirements.txt
 ├── README.md
 ├── LICENSE
 ├── .gitignore
+├── sub_d_tester/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── protocol.py
+│   ├── serial_connection.py
+│   ├── simulator.py
+│   └── ui.py
 ├── arduino/
-│   └── kabeltest_mega/
-│       └── kabeltest_mega.ino
+│   └── sub_d_tester_mega/
+│       └── sub_d_tester_mega.ino
 ├── assets/
 │   └── logo.svg
 ├── docs/
-│   └── screenshots/
-│       └── .gitkeep
+│   └── anschlussplan.md
+├── tests/
+│   └── test_protocol.py
 └── .github/
     └── workflows/
         └── python-check.yml
 ```
 
-## Bedienung
-
-1. Arduino per USB verbinden.
-2. Port in der Oberfläche eintragen.
-3. Auf `Verbinden` klicken.
-4. Kabel zwischen die beiden D-Sub-25 Anschlüsse stecken.
-5. `Gesamttest starten` drücken.
-6. Ergebnis in der Oberfläche prüfen.
-
-Für einzelne Leitungen kann eine Adernummer ausgewählt und mit `Einzeltest` geprüft werden.
-
-## Test ohne Hardware
-
-Der Simulationsmodus ist praktisch, um die Oberfläche zu zeigen oder weiterzuentwickeln, ohne den Arduino anzuschließen.
+## Tests
 
 ```bash
-python main.py --simulation --fenster
+python -m unittest discover -s tests
 ```
 
-Dabei erzeugt die Anwendung realistische Beispielergebnisse für alle 25 Adern.
+Zusätzlich kann man die Python-Dateien kompilieren lassen:
+
+```bash
+python -m compileall .
+```
 
 ## Fehlerbehebung
 
-### Arduino wird nicht verbunden
+### Keine Verbindung zum Arduino
 
-- Prüfen, ob das USB-Kabel korrekt steckt
-- Richtigen COM-Port auswählen
+- Prüfen, ob der richtige COM-Port gewählt ist
 - Arduino IDE Serial Monitor schließen
-- Baudrate auf 9600 setzen
-- Treiber für das Board prüfen
-- Unter Linux Benutzer zur Gruppe `dialout` hinzufügen
+- USB-Kabel prüfen
+- Baudrate auf `9600` lassen
+- Unter Linux eventuell Rechte setzen:
 
 ```bash
 sudo usermod -a -G dialout $USER
 ```
 
-Danach einmal abmelden oder neu starten.
+Danach neu anmelden oder neu starten.
 
-### Python meldet fehlende Module
+### Alle Adern sind unterbrochen
 
-```bash
-pip install -r requirements.txt
-```
-
-### Keine Treffer bei allen Adern
-
-- D-Sub-Verdrahtung prüfen
-- Gemeinsame Masse prüfen
-- Eingang und Ausgang nicht vertauschen
-- Pinbelegung im Sketch mit der realen Verdrahtung vergleichen
+- Prüfling richtig einstecken
+- D-Sub-Adapter auf Eingang/Ausgang prüfen
+- Pinbelegung im Sketch mit der echten Verdrahtung vergleichen
+- Keine Spannung von außen einspeisen
 
 ### Viele Kurzschlüsse
 
-- Lötstellen prüfen
-- Stecker auf Zinnbrücken kontrollieren
-- Flachbandkabel auf falsche Crimpung prüfen
+- Lötstellen und Crimpkontakte prüfen
+- Zinnbrücken am D-Sub-Stecker suchen
+- Flachbandkabel auf falsche Orientierung prüfen
 - Testadapter einzeln durchmessen
 
-## Hinweise zur Sicherheit
+## Sicherheit
 
-Dieses Projekt ist für Kleinspannung und Logiksignale gedacht. Es darf nicht direkt an Netzspannung oder unbekannte Industrieanlagen angeschlossen werden. Vor jedem Test sollte sichergestellt werden, dass das Kabel spannungsfrei ist.
+Der Tester ist nur für Kleinspannung, Logiksignale und spannungsfreie Leitungen gedacht. Keine Netzspannung, keine unbekannten Industrieanlagen und keine aktiven Signalleitungen direkt anschließen.
 
-## Mögliche Erweiterungen
+## Lizenz
 
-- Speicherung der Testergebnisse als CSV
-- PDF-Prüfprotokoll
-- Touchdisplay-Bedienung direkt am Arduino
-- Automatische Seriennummerneingabe
-- Barcode- oder QR-Code-Scanner
-- SQLite-Datenbank für Kabeltypen
-- Benutzerverwaltung
-- Mehrsprachige Oberfläche
-- Prüfprofile für verschiedene Steckertypen
-- Kalibrierfunktion für Testadapter
-
+MIT License. Copyright © 2026 Amir Mobahseraghdam.

@@ -1,2 +1,2 @@
-customtkinter
-pyserial
+customtkinter>=5.2
+pyserial>=3.5
